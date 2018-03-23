@@ -1,11 +1,11 @@
-#vue-cli 基于webpack打包文档详解
+# vue-cli 基于webpack打包文档详解
 * [webpack中文文档地址](https://www.webpackjs.com/)
 
-##vue-cli脚手架工具全局安装
+## vue-cli脚手架工具全局安装
 ```bash
   npm install vue-cli -g
 ```
-##vue-cli创建项目
+## vue-cli创建项目
 ```bash
   npm init webpack project
 
@@ -29,7 +29,7 @@
   # Setup e2e tests with Nightwatch? No
 
 ```
-##生成后的目录结构
+## 生成后的目录结构
 
 ```
    webpack
@@ -50,3 +50,14 @@
       |---index.html 入口的html模板页面
       |---package.json 常用的包依赖配置文件 以及打包命令配置等
 ```
+## 下载包依赖
+```bash
+  npm install 
+```
+
+## 运行
+```bash
+npm run dev
+```
+
+# webpack配置
