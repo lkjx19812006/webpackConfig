@@ -61,7 +61,10 @@ npm run dev
 ```
 
 # webpack配置详解
+
 ## build 目录
+
+
 ### build.js 
 ```js
 //执行 npm run build 实现生产环境打包时，会自动查找package.json中配置好的 build选项
@@ -302,7 +305,7 @@ const devWebpackConfig = merge(baseWebpackConfig, {
   },
   plugins: [
     new webpack.DefinePlugin({
-      'process.env': require('../config/dev.env')//将环境变量暴露 全局能够使用
+      'process.env': require('../config/dev.env')//将环境变量暴露到全局变量
     }),
     new webpack.HotModuleReplacementPlugin(),
     new webpack.NamedModulesPlugin(), // HMR shows correct file names in console on update.
@@ -355,6 +358,276 @@ module.exports = new Promise((resolve, reject) => {
 ```
 
 
-
-
 ### webpack.prod.conf webpack生产打包配置 【重点】 
+```js
+'use strict'
+const path = require('path')
+const utils = require('./utils')
+const webpack = require('webpack')
+const config = require('../config')
+const merge = require('webpack-merge')
+const baseWebpackConfig = require('./webpack.base.conf')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const ExtractTextPlugin = require('extract-text-webpack-plugin')
+const OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin')
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
+
+//引入生产环境变量
+const env = require('../config/prod.env')
+
+//配置合并
+const webpackConfig = merge(baseWebpackConfig, {
+  module: {
+    rules: utils.styleLoaders({
+      sourceMap: config.build.productionSourceMap,//配置生产的map文件
+      extract: true,
+      usePostCSS: true
+    })
+  },
+  devtool: config.build.productionSourceMap ? config.build.devtool : false,//配置生产的map文件
+  //输出文件
+  output: {
+    path: config.build.assetsRoot,//输出目录
+    filename: utils.assetsPath('js/[name].[chunkhash].js'),//js哈希值
+    chunkFilename: utils.assetsPath('js/[id].[chunkhash].js')//js哈希值
+  },
+
+  //以下是相关插件配置，有兴趣可自己上官网查看插件文档
+  plugins: [
+    // http://vuejs.github.io/vue-loader/en/workflow/production.html
+    new webpack.DefinePlugin({
+      'process.env': env
+    }),
+    //处理压缩后的警告输出
+    new UglifyJsPlugin({
+      uglifyOptions: {
+        compress: {
+          warnings: false
+        }
+      },
+      sourceMap: config.build.productionSourceMap,//配置map文件
+      parallel: true
+    }),
+    // extract css into its own file
+    new ExtractTextPlugin({
+      filename: utils.assetsPath('css/[name].[contenthash].css'),
+      // Setting the following option to `false` will not extract CSS from codesplit chunks.
+      // Their CSS will instead be inserted dynamically with style-loader when the codesplit chunk has been loaded by webpack.
+      // It's currently set to `true` because we are seeing that sourcemaps are included in the codesplit bundle as well when it's `false`, 
+      // increasing file size: https://github.com/vuejs-templates/webpack/issues/1110
+      allChunks: true,
+    }),
+    // Compress extracted CSS. We are using this plugin so that possible
+    // duplicated CSS from different components can be deduped.
+    new OptimizeCSSPlugin({
+      cssProcessorOptions: config.build.productionSourceMap
+        ? { safe: true, map: { inline: false } }
+        : { safe: true }
+    }),
+    // generate dist index.html with correct asset hash for caching.
+    // you can customize output by editing /index.html
+    // see https://github.com/ampedandwired/html-webpack-plugin
+    new HtmlWebpackPlugin({
+      filename: config.build.index,//输出的模板名 和路径 在config中配置有
+      template: 'index.html',//使用的模板
+      inject: true,
+      minify: {
+        removeComments: true,//压缩相关配置
+        collapseWhitespace: true,
+        removeAttributeQuotes: true
+        // more options:
+        // https://github.com/kangax/html-minifier#options-quick-reference
+      },
+      // necessary to consistently work with multiple chunks via CommonsChunkPlugin
+      chunksSortMode: 'dependency'
+    }),
+    // keep module.id stable when vendor modules does not change
+    new webpack.HashedModuleIdsPlugin(),
+    // enable scope hoisting
+    new webpack.optimize.ModuleConcatenationPlugin(),
+    // split vendor js into its own file
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'vendor',
+      minChunks (module) {
+        // any required modules inside node_modules are extracted to vendor
+        return (
+          module.resource &&
+          /\.js$/.test(module.resource) &&
+          module.resource.indexOf(
+            path.join(__dirname, '../node_modules')
+          ) === 0
+        )
+      }
+    }),
+    // extract webpack runtime and module manifest to its own file in order to
+    // prevent vendor hash from being updated whenever app bundle is updated
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'manifest',
+      minChunks: Infinity
+    }),
+    // This instance extracts shared chunks from code splitted chunks and bundles them
+    // in a separate chunk, similar to the vendor chunk
+    // see: https://webpack.js.org/plugins/commons-chunk-plugin/#extra-async-commons-chunk
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'app',
+      async: 'vendor-async',
+      children: true,
+      minChunks: 3
+    }),
+
+    // copy custom static assets
+    new CopyWebpackPlugin([
+      {
+        from: path.resolve(__dirname, '../static'),
+        to: config.build.assetsSubDirectory,
+        ignore: ['.*']
+      }
+    ])
+  ]
+})
+//是否启用gzip压缩
+if (config.build.productionGzip) {
+  const CompressionWebpackPlugin = require('compression-webpack-plugin')
+
+  webpackConfig.plugins.push(
+    new CompressionWebpackPlugin({
+      asset: '[path].gz[query]',
+      algorithm: 'gzip',
+      test: new RegExp(
+        '\\.(' +
+        config.build.productionGzipExtensions.join('|') +
+        ')$'
+      ),
+      threshold: 10240,
+      minRatio: 0.8
+    })
+  )
+}
+
+if (config.build.bundleAnalyzerReport) {
+  const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin
+  webpackConfig.plugins.push(new BundleAnalyzerPlugin())
+}
+
+module.exports = webpackConfig
+
+```
+## config 目录 项目的打包的配置文件基本都在这里配置 【重点】
+
+
+### dev.env.js 开发环境配置文件
+```js
+'use strict'
+const merge = require('webpack-merge')
+const prodEnv = require('./prod.env')
+//合并生产的配置，声明开发环境为development
+module.exports = merge(prodEnv, {
+  NODE_ENV: '"development"'
+})
+
+```
+
+
+### index.js config配置文件的入口
+
+```js
+'use strict'
+// Template version: 1.3.1
+// see http://vuejs-templates.github.io/webpack for documentation.
+
+const path = require('path')
+
+module.exports = {
+  //开发环境配置
+  dev: {
+
+    // Paths
+    assetsSubDirectory: 'static',//静态资源文件夹名称 
+    assetsPublicPath: '/',//打包配置相对与根目录即 dist 目录下的第一层 如设置为 /public 则打包到 dist/public
+    //接口转发配置如下模式
+    proxyTable: {
+       '/ws_oss_service': {
+            target: 'http://oss.anyitech.ltd/',
+            // pathRewrite: {'^/front': '/front'},
+            changeOrigin: true
+        },
+
+    },//代理配置
+
+    // Various Dev Server settings
+    host: 'localhost', // can be overwritten by process.env.HOST
+    port: 8080, // can be overwritten by process.env.PORT, if port is in use, a free one will be determined
+    autoOpenBrowser: false,//是否自动打开浏览器
+    errorOverlay: true,
+    notifyOnErrors: true,
+    poll: false, // https://webpack.js.org/configuration/dev-server/#devserver-watchoptions-
+
+    
+    /**
+     * Source Maps
+     */
+
+    // https://webpack.js.org/configuration/devtool/#development
+    devtool: 'cheap-module-eval-source-map',
+
+    // If you have problems debugging vue-files in devtools,
+    // set this to false - it *may* help
+    // https://vue-loader.vuejs.org/en/options.html#cachebusting
+    cacheBusting: true,
+
+    cssSourceMap: true
+  },
+
+  build: {
+    // Template for index.html
+    index: path.resolve(__dirname, '../dist/index.html'),//生成静态资源的html入口
+
+    // Paths
+    assetsRoot: path.resolve(__dirname, '../dist'),//打包到dist目录下
+    assetsSubDirectory: 'static',//静态资源目录
+    assetsPublicPath: '/',//根目录 打包配置相对与根目录即 dist 目录下的第一层 如设置为 /public 则打包到 dist/public
+
+    /**
+     * Source Maps
+     */
+
+    productionSourceMap: true,//开启map源
+    // https://webpack.js.org/configuration/devtool/#production
+    devtool: '#source-map',
+
+    // Gzip off by default as many popular static hosts such as
+    // Surge or Netlify already gzip all static assets for you.
+    // Before setting to `true`, make sure to:
+    // npm install --save-dev compression-webpack-plugin
+    productionGzip: false,//是否启用Gzip压缩
+    productionGzipExtensions: ['js', 'css'],
+
+    // Run the build command with an extra argument to
+    // View the bundle analyzer report after build finishes:
+    // `npm run build --report`
+    // Set to `true` or `false` to always turn it on or off
+    bundleAnalyzerReport: process.env.npm_config_report
+  }
+}
+
+```
+
+### prod.env.js  生产环境配置文件的入口
+
+```js
+'use strict'
+//配置生产环境变量
+module.exports = {
+  NODE_ENV: '"production"'
+}
+
+```
+
+# 其他
+
+* 1.vuex的使用 以及模块化【见App项目】
+* 2.router 模块化 【见综合运营平台项目】
+* 3.多页面打包配置 【见云推广前端项目】
+* 4.其他相关具体细节可根据文档查阅
+
